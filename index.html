@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Split Log</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: dark, warm-black phone app. Soft rounded cards, a red glow at the top,
+   a week strip of squares (red = trained, dashed = coming up), outlined pill actions,
+   floating tab bar. One committed dark look, so no light theme. */
+:root {
+  --bg: #0A0909;
+  --surface: #161313;
+  --surface2: #201C1C;
+  --line: #2C2626;
+  --ink: #F4EFE6;
+  --muted: #8F8983;
+  --red: #A92B2B;
+  --red-text: #EE4A43;
+  --yellow: #F2D14B;
+  --on-yellow: #17130A;
+  --f: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --sar: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --sal: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(110% 36% at 82% -4%, #3A0F10 0%, rgba(58, 15, 16, 0) 72%);
+  background-repeat: no-repeat;
+  color: var(--ink); font-family: var(--f); font-size: 16px; line-height: 1.4;
+  padding-left: max(16px, var(--sal)); padding-right: max(16px, var(--sar));
+  -webkit-text-size-adjust: 100%;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.wrap { max-width: 560px; margin: 0 auto; }
+main { padding: calc(18px + var(--sat)) 0 124px; display: flex; flex-direction: column; gap: 14px; }
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 4px 0 4px; }
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: var(--red-text); }
+.head h1 { font-size: 34px; font-weight: 600; line-height: 1.1; margin-top: 4px; letter-spacing: -.01em; }
+.status { font-size: 12px; color: var(--muted); text-align: right; padding-top: 4px; max-width: 40%; }
+
+.sec { display: flex; align-items: center; gap: 10px; margin: 10px 0 -4px; font-size: 14px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.sec::before { content: ""; width: 3px; height: 16px; border-radius: 2px; background: var(--red-text); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.card h2 { font-size: 24px; font-weight: 600; letter-spacing: -.01em; }
+.card h2.big { font-size: 34px; line-height: 1.1; }
+.muted { color: var(--muted); font-size: 15px; }
+.small { font-size: 13px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.pillbtn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 60px; border-radius: 999px; background: transparent; border: 1.5px solid #3D3535; color: var(--ink); font-size: 18px; font-weight: 500; padding: 0 20px; }
+.pillbtn svg { width: 26px; height: 26px; stroke: var(--ink); fill: none; stroke-width: 1.6; flex: none; }
+.pillbtn.solid { background: var(--yellow); border-color: var(--yellow); color: var(--on-yellow); font-weight: 600; }
+.pillbtn.solid svg { stroke: var(--on-yellow); }
+.pillbtn.sm { min-height: 44px; font-size: 15px; width: auto; padding: 0 18px; }
+.link { background: none; border: 0; padding: 6px 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; }
+.logged { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 60px; border-radius: 999px; background: var(--red); padding: 0 20px; font-weight: 600; }
+.logged .link { color: var(--ink); opacity: .9; }
+
+.arrow { width: 44px; height: 44px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--line); display: grid; place-items: center; flex: none; }
+.arrow svg { width: 18px; height: 18px; stroke: var(--ink); fill: none; stroke-width: 2; }
+.arrow:disabled { opacity: .35; }
+
+.strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.L { font-size: 13px; color: var(--muted); font-weight: 500; }
+.L.now { color: var(--ink); font-weight: 700; }
+.sq { width: 100%; aspect-ratio: 1 / 1.12; border-radius: 14px; border: 1.5px solid transparent; background: var(--surface2); display: grid; place-items: center; padding: 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; color: var(--muted); }
+.sq.done { background: var(--red); color: #fff; }
+.sq.done.rc { background: transparent; border-color: var(--red); color: var(--red-text); }
+.sq.future { background: transparent; border: 1.5px dashed #4A4141; }
+.sq.rest { background: transparent; border: 1.5px dashed #332D2D; color: #5C5651; }
+.sq.sel { border: 2px solid var(--ink); }
+.sq.future.sel, .sq.rest.sel { border-style: solid; }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 16px 14px; }
+.tile b { display: block; font-size: 34px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile span { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); }
+.tiles.two { grid-template-columns: repeat(2, 1fr); }
+
+.nudge { background: var(--surface); border: 1.5px dashed #5A4F4F; border-radius: 24px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.nudge p { font-size: 15px; }
+.viewing { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.chip { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 4px 12px; border-radius: 999px; border: 1.5px solid #3D3535; color: var(--muted); white-space: nowrap; }
+.chip.done { background: var(--red); border-color: var(--red); color: #fff; }
+.chip.today { border-color: var(--ink); color: var(--ink); }
+.chip.missed { border-style: dashed; }
+
+.ex { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
+.ex-head { width: 100%; display: grid; grid-template-columns: 30px 1fr auto 14px; align-items: center; gap: 10px; background: none; border: 0; text-align: left; padding: 14px 18px; min-height: 66px; }
+.ex-n { font-size: 22px; font-weight: 700; color: var(--red-text); }
+.ex-t b { display: block; font-weight: 600; font-size: 16px; line-height: 1.2; }
+.ex-t small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.ex-p { font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ex-p.full { color: var(--red-text); }
+.chev { width: 14px; height: 14px; stroke: var(--muted); fill: none; stroke-width: 2; transition: transform .15s; }
+[aria-expanded="true"] > .chev { transform: rotate(180deg); }
+.ex-body { padding: 0 18px 16px; display: none; flex-direction: column; gap: 8px; }
+.ex-head[aria-expanded="true"] + .ex-body { display: flex; }
+.set-h, .set { display: grid; grid-template-columns: 40px 1fr 1fr; gap: 8px; align-items: center; }
+.set-h { font-size: 12px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.set label { font-size: 20px; font-weight: 700; color: var(--muted); }
+input[type="text"], input[type="date"], input[type="time"] {
+  width: 100%; min-width: 0; height: 48px; background: #0F0D0D; border: 1px solid var(--line); border-radius: 14px; padding: 0 14px; font-size: 18px; font-variant-numeric: tabular-nums;
+}
+input::placeholder { color: #6A645F; }
+input[type="file"] { font-size: 14px; color: var(--muted); }
+input:disabled { opacity: .5; }
+.ex-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.last { font-size: 13px; color: var(--muted); }
+.vids { display: flex; flex-wrap: wrap; gap: 0 18px; }
+.vid { color: var(--ink); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; padding: 8px 0; }
+
+.split { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
+.split-head { width: 100%; display: grid; grid-template-columns: 52px 1fr auto 14px; align-items: center; gap: 12px; background: none; border: 0; text-align: left; padding: 14px 18px; min-height: 68px; }
+.split-head.static { grid-template-columns: 52px 1fr auto; cursor: default; }
+.split .d { font-size: 15px; font-weight: 700; letter-spacing: .08em; color: var(--red-text); text-transform: uppercase; }
+.split .t b { display: block; font-weight: 600; font-size: 17px; }
+.split .t small { color: var(--muted); font-size: 13px; }
+.split-body { padding: 0 18px 16px; display: none; flex-direction: column; gap: 10px; }
+.split-head[aria-expanded="true"] + .split-body { display: flex; }
+.split-body ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.split-body li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.split-body li:first-child { border-top: 0; }
+.split-body li span:last-child { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal .h { font-size: 12px; text-align: center; color: var(--muted); padding-bottom: 2px; }
+.cell { aspect-ratio: 1; min-height: 40px; border-radius: 12px; border: 1.5px solid transparent; background: var(--surface2); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; padding: 0; font-variant-numeric: tabular-nums; color: var(--muted); }
+.cell .n { font-size: 15px; font-weight: 600; }
+.cell .c { font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.cell.blank { background: none; border: 0; }
+.cell.off { background: none; }
+.cell.done { background: var(--red); color: #fff; }
+.cell.done.rc { background: transparent; border-color: var(--red); color: var(--red-text); }
+.cell.missed { background: var(--surface2); }
+.cell.today { border: 2px solid var(--ink); }
+.legend { font-size: 13px; color: var(--muted); }
+
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form .full { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.err { color: var(--red-text); font-size: 14px; }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-size: 10px; font-family: var(--f); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .ln { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .dot { fill: var(--red-text); }
+.entries { display: flex; flex-direction: column; }
+.entry { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.entry:first-child { border-top: 0; }
+
+.rem { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.rem b { display: block; font-weight: 600; }
+.rem small { color: var(--muted); font-size: 13px; }
+a.add, button.add { background: transparent; display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 20px; border-radius: 999px; border: 1.5px solid #3D3535; color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; }
+.timerow { display: grid; grid-template-columns: 1fr 156px; gap: 10px; align-items: center; }
+.timerow input { height: 44px; font-size: 16px; }
+
+.sw input { appearance: none; -webkit-appearance: none; width: 54px; height: 32px; border-radius: 999px; background: var(--surface2); border: 1px solid #3D3535; position: relative; margin: 0; flex: none; }
+.sw input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--muted); transition: left .15s, background .15s; }
+.sw input:checked { background: var(--red); border-color: var(--red); }
+.sw input:checked::after { left: 25px; background: #fff; }
+.remn { padding: 12px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.remn:first-of-type { border-top: 0; }
+.remn .row b { display: block; font-weight: 600; }
+.remn .row small { color: var(--muted); font-size: 13px; }
+textarea { width: 100%; background: #0F0D0D; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font: inherit; font-size: 16px; color: var(--ink); resize: vertical; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; }
+.seg button { border: 0; background: none; min-height: 42px; border-radius: 999px; color: var(--muted); font-weight: 600; font-size: 15px; }
+.seg button[aria-pressed="true"] { background: var(--surface2); color: var(--ink); }
+.hmcard { text-align: left; width: 100%; color: inherit; font: inherit; }
+.hm { display: grid; grid-template-columns: repeat(var(--w), 1fr); gap: 2px; width: 100%; }
+.hm i { aspect-ratio: 1; border-radius: 2px; background: #1B1717; display: block; }
+.hm i.done { background: var(--red); }
+.hm i.rc { background: transparent; box-shadow: inset 0 0 0 1px var(--red); }
+.hm i.missed { background: transparent; box-shadow: inset 0 0 0 1px #4A4141; }
+.hm i.fut { background: #131010; }
+.hm i.out { background: transparent; }
+.hm i.now { box-shadow: 0 0 0 1.5px var(--ink); position: relative; }
+.yms { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.ym { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 12px; min-width: 0; }
+.ym h3 { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; }
+.ym h3 span { color: var(--muted); letter-spacing: 0; }
+.ycal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.yd { aspect-ratio: 1; border-radius: 4px; border: 0; background: #1B1717; padding: 0; min-height: 0; min-width: 0; }
+.yd.blank { background: none; }
+.yd.done { background: var(--red); }
+.yd.done.rc { background: transparent; box-shadow: inset 0 0 0 1.5px var(--red); }
+.yd.missed { background: transparent; box-shadow: inset 0 0 0 1px #4A4141; }
+.yd.today { box-shadow: 0 0 0 1.5px var(--ink); }
+.bar { height: 8px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--red); border-radius: 4px; }
+.bys { display: grid; grid-template-columns: 84px 1fr 32px; gap: 10px; align-items: center; font-size: 15px; }
+.bys b { text-align: right; font-variant-numeric: tabular-nums; }
+.srow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 12px 0; min-height: 52px; }
+.srow:first-child { border-top: 0; }
+.srow small { color: var(--muted); font-size: 13px; display: block; }
+.srow b { font-weight: 600; }
+nav#tabs {
+  position: fixed; z-index: 20; left: max(14px, var(--sal)); right: max(14px, var(--sar)); bottom: calc(12px + var(--sab));
+  max-width: 532px; margin: 0 auto; background: #151212; border: 1px solid var(--line); border-radius: 34px; padding: 6px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; box-shadow: 0 10px 30px rgba(0, 0, 0, .55);
+}
+nav#tabs button { background: none; border: 0; border-radius: 28px; min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 13px; font-weight: 500; color: var(--muted); }
+nav#tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+nav#tabs button[aria-current="page"] { color: var(--ink); background: var(--surface2); font-weight: 600; }
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(100px + var(--sab)); background: var(--ink); color: #14110F; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 500; z-index: 30; max-width: min(92vw, 440px); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+@media (max-width: 380px) { .head h1 { font-size: 30px; } .tile b { font-size: 28px; } .card { padding: 16px; } }
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0A0909">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Split Log">
+<link rel="apple-touch-startup-image" href="splash/1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="splash/1260x2736.png" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+</head>
+<body>
+<div class="wrap"><main id="view"></main></div>
+<nav id="tabs" aria-label="Sections">
+  <button data-tab="today"><svg viewBox="0 0 24 24"><path d="M6 20V11M12 20V4M18 20v-6"/></svg>Daily</button>
+  <button data-tab="log"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M9 8.5h6M9 12.5h6M9 16.5h3"/></svg>Logbook</button>
+  <button data-tab="body"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg>Body</button>
+  <button data-tab="remind"><svg viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l1.5 2h-15L6 16zM10 20a2 2 0 004 0"/></svg>Alerts</button>
+</nav>
+<div id="toast" role="status" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- plan (from the V-taper PDF) ---------- */
+  var ex = function (id, name, sets, reps, rest, o) { return Object.assign({ id: id, name: name, sets: sets, reps: reps, rest: rest }, o || {}); };
+  var DAYS = {
+    pull: { name: 'Pull A', code: 'PA', type: 'lift', minutes: 75, ex: [
+      ex('pullup', 'Pull-ups', 4, '6-10', '2-3 min', { bw: 1 }),
+      ex('csrow', 'Chest-supported row', 3, '8-12', '2 min'),
+      ex('sapd', 'Straight-arm cable pulldown', 3, '12-15', '90 sec'),
+      ex('rpd', 'Reverse pec deck', 3, '12-15', '60 sec'),
+      ex('shrug', 'Dumbbell shrug', 3, '10-15', '90 sec'),
+      ex('preacher', 'Preacher curl', 3, '8-12', '90 sec'),
+      ex('hammer', 'Hammer curl', 3, '10-12', '60 sec'),
+      ex('wristc', 'Seated wrist curl', 3, '12-15', '60 sec')] },
+    push: { name: 'Push', code: 'PU', type: 'lift', minutes: 85, ex: [
+      ex('lowinc', 'Low-incline press', 4, '6-10', '2-3 min'),
+      ex('dips', 'Dips (lean forward)', 3, '8-12', '2 min', { bw: 1 }),
+      ex('clr', 'Cable lateral raise', 4, '12-16 each', '60-90 sec'),
+      ex('sdbp', 'Seated dumbbell shoulder press', 3, '8-10', '2 min'),
+      ex('cfly', 'Cable fly', 3, '12-15', '60-90 sec'),
+      ex('oetx', 'Overhead cable triceps extension', 3, '10-15', '90 sec'),
+      ex('pupp', 'Push-up plus', 3, '10-15', '60 sec', { bw: 1 }),
+      ex('extrot', 'Cable external rotation', 2, '12-15 each', '60 sec'),
+      ex('yraise', 'Prone Y-raise', 2, '12-15', '60 sec')] },
+    legsA: { name: 'Legs A', code: 'LA', type: 'lift', minutes: 70, ex: [
+      ex('squat', 'Back squat (or hack squat)', 3, '6-10', '2-3 min'),
+      ex('lpress', 'Leg press', 3, '10-15', '2 min'),
+      ex('lext', 'Leg extension', 2, '12-15', '60-90 sec'),
+      ex('slc', 'Seated leg curl', 3, '10-12', '90 sec'),
+      ex('habd', 'Hip abduction machine', 2, '12-15', '60 sec'),
+      ex('stcalf', 'Standing calf raise', 4, '8-12', '60-90 sec'),
+      ex('tib', 'Tibialis raise', 2, '15-20', '60 sec', { bw: 1 }),
+      ex('dlr', 'Dumbbell lateral raise', 3, '15-20', '60 sec'),
+      ex('hlr', 'Hanging leg raise', 3, '8-15', '60 sec', { bw: 1 })] },
+    upperB: { name: 'Upper B', code: 'UB', type: 'lift', minutes: 75, ex: [
+      ex('ngpd', 'Neutral-grip lat pulldown', 3, '10-12', '90 sec'),
+      ex('oadr', 'One-arm dumbbell row', 3, '8-12 each', '90 sec'),
+      ex('lalr', 'Lean-away lateral raise', 3, '12-16 each', '60 sec'),
+      ex('flatp', 'Flat chest press', 3, '8-12', '2 min'),
+      ex('hincp', 'High incline chest press', 3, '8-12', '2 min'),
+      ex('fpull', 'Face pull', 3, '12-15', '60 sec'),
+      ex('incurl', 'Incline dumbbell curl', 3, '10-12', '60-90 sec'),
+      ex('tpd', 'Triceps pushdown', 2, '10-15', '60 sec'),
+      ex('rwc', 'Reverse wrist curl', 3, '12-15', '60 sec')] },
+    legsB: { name: 'Legs B', code: 'LB', type: 'lift', minutes: 75, ex: [
+      ex('rdl', 'Romanian deadlift', 3, '6-10', '2-3 min'),
+      ex('hthrust', 'Hip thrust', 3, '8-12', '2 min'),
+      ex('hadd', 'Hip adduction machine', 2, '12-15', '60 sec'),
+      ex('bss', 'Bulgarian split squat', 2, '8-10 each', '90 sec'),
+      ex('llc', 'Lying leg curl', 3, '10-12', '90 sec'),
+      ex('seatcalf', 'Seated calf raise', 3, '12-15', '60 sec'),
+      ex('tib', 'Tibialis raise', 2, '15-20', '60 sec', { bw: 1 }),
+      ex('ccrunch', 'Cable crunch', 3, '10-15', '60 sec'),
+      ex('pallof', 'Pallof press', 2, '10-12 each', '60 sec'),
+      ex('farmer', "Farmer's walk", 3, '40-60 sec', '60 sec', { timed: 1 })] },
+    recovery: { name: 'Recovery', code: 'RC', type: 'recovery', ex: [] },
+    rest: { name: 'Rest day', code: '', type: 'rest', ex: [] }
+  };
+  /* YouTube searches for each exercise's form tutorial (same links as the PDF) */
+  var VIDEOS = {"pullup":[["Watch form video","https://www.youtube.com/results?search_query=pull-up+form+tutorial"]],"csrow":[["Watch form video","https://www.youtube.com/results?search_query=chest+supported+row+form+tutorial"]],"sapd":[["Watch form video","https://www.youtube.com/results?search_query=straight+arm+cable+pulldown+form+tutorial"]],"rpd":[["Watch form video","https://www.youtube.com/results?search_query=reverse+pec+deck+form+tutorial"]],"shrug":[["Watch form video","https://www.youtube.com/results?search_query=dumbbell+shrug+form+tutorial"]],"preacher":[["Watch form video","https://www.youtube.com/results?search_query=preacher+curl+form+tutorial"]],"hammer":[["Watch form video","https://www.youtube.com/results?search_query=hammer+curl+form+tutorial"]],"wristc":[["Watch form video","https://www.youtube.com/results?search_query=seated+wrist+curl+form+tutorial"]],"lowinc":[["Watch form video","https://www.youtube.com/results?search_query=low+incline+dumbbell+press+form+tutorial"]],"dips":[["Watch form video","https://www.youtube.com/results?search_query=chest+dips+form+tutorial"]],"clr":[["Watch form video","https://www.youtube.com/results?search_query=cable+lateral+raise+form+tutorial"]],"sdbp":[["Watch form video","https://www.youtube.com/results?search_query=seated+dumbbell+shoulder+press+form+tutorial"]],"cfly":[["Watch form video","https://www.youtube.com/results?search_query=cable+fly+form+tutorial"]],"oetx":[["Watch form video","https://www.youtube.com/results?search_query=overhead+cable+triceps+extension+form+tutorial"]],"pupp":[["Watch form video","https://www.youtube.com/results?search_query=push+up+plus+serratus+form+tutorial"]],"extrot":[["Watch form video","https://www.youtube.com/results?search_query=cable+external+rotation+form+tutorial"]],"yraise":[["Watch form video","https://www.youtube.com/results?search_query=incline+prone+Y+raise+form+tutorial"]],"squat":[["Squat video","https://www.youtube.com/results?search_query=back+squat+form+tutorial"],["Hack squat video","https://www.youtube.com/results?search_query=hack+squat+form+tutorial"]],"lpress":[["Watch form video","https://www.youtube.com/results?search_query=leg+press+form+tutorial"]],"lext":[["Watch form video","https://www.youtube.com/results?search_query=leg+extension+form+tutorial"]],"slc":[["Watch form video","https://www.youtube.com/results?search_query=seated+leg+curl+form+tutorial"]],"habd":[["Watch form video","https://www.youtube.com/results?search_query=hip+abduction+machine+form+tutorial"]],"stcalf":[["Watch form video","https://www.youtube.com/results?search_query=standing+calf+raise+form+tutorial"]],"tib":[["Watch form video","https://www.youtube.com/results?search_query=tibialis+raise+form+tutorial"]],"dlr":[["Watch form video","https://www.youtube.com/results?search_query=dumbbell+lateral+raise+form+tutorial"]],"hlr":[["Watch form video","https://www.youtube.com/results?search_query=hanging+leg+raise+form+tutorial"]],"ngpd":[["Watch form video","https://www.youtube.com/results?search_query=neutral+grip+lat+pulldown+form+tutorial"]],"oadr":[["Watch form video","https://www.youtube.com/results?search_query=one+arm+dumbbell+row+form+tutorial"]],"lalr":[["Watch form video","https://www.youtube.com/results?search_query=lean+away+lateral+raise+form+tutorial"]],"flatp":[["Watch form video","https://www.youtube.com/results?search_query=flat+chest+press+form+tutorial"]],"hincp":[["Watch form video","https://www.youtube.com/results?search_query=high+incline+dumbbell+press+form+tutorial"]],"fpull":[["Watch form video","https://www.youtube.com/results?search_query=face+pull+form+tutorial"]],"incurl":[["Watch form video","https://www.youtube.com/results?search_query=incline+dumbbell+curl+form+tutorial"]],"tpd":[["Watch form video","https://www.youtube.com/results?search_query=triceps+pushdown+form+tutorial"]],"rwc":[["Watch form video","https://www.youtube.com/results?search_query=reverse+wrist+curl+form+tutorial"]],"rdl":[["Watch form video","https://www.youtube.com/results?search_query=romanian+deadlift+form+tutorial"]],"hthrust":[["Watch form video","https://www.youtube.com/results?search_query=hip+thrust+form+tutorial"]],"hadd":[["Watch form video","https://www.youtube.com/results?search_query=hip+adduction+machine+form+tutorial"]],"bss":[["Watch form video","https://www.youtube.com/results?search_query=bulgarian+split+squat+form+tutorial"]],"llc":[["Watch form video","https://www.youtube.com/results?search_query=lying+leg+curl+form+tutorial"]],"seatcalf":[["Watch form video","https://www.youtube.com/results?search_query=seated+calf+raise+form+tutorial"]],"ccrunch":[["Watch form video","https://www.youtube.com/results?search_query=cable+crunch+form+tutorial"]],"pallof":[["Watch form video","https://www.youtube.com/results?search_query=pallof+press+form+tutorial"]],"farmer":[["Watch form video","https://www.youtube.com/results?search_query=farmers+walk+form+tutorial"]]};
+  var DOW = { 1: 'pull', 2: 'push', 3: 'legsA', 4: 'recovery', 5: 'upperB', 6: 'legsB', 0: 'rest' };
+  var LIFT_DOWS = [1, 2, 3, 5, 6];
+  var WEEKLY_GOAL = 5;
+
+  /* ---------- dates (all local, YYYY-MM-DD) ---------- */
+  var WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var MONL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var ymd = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  var parse = function (s) { var p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 12); };
+  var addDays = function (s, n) { var d = parse(s); d.setDate(d.getDate() + n); return ymd(d); };
+  var dowOf = function (s) { return parse(s).getDay(); };
+  var today = function () { return ymd(new Date()); };
+  var shortD = function (s) { var d = parse(s); return d.getDate() + ' ' + MON[d.getMonth()]; };
+  var longD = function (s) { var d = parse(s); return WDL[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()]; };
+  var mondayOf = function (s) { return addDays(s, -((dowOf(s) + 6) % 7)); };
+  var keyOf = function (s) { return DOW[dowOf(s)]; };
+  var isLift = function (s) { return DAYS[keyOf(s)].type === 'lift'; };
+  var esc = function (t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var totalSets = function (day) { return day.ex.reduce(function (a, e) { return a + e.sets; }, 0); };
+
+  /* ---------- state ---------- */
+  var S = { docs: new Map(), col: null, mode: 'local', synced: false, slow: false, name: '', tab: 'today', date: today(),
+            weekStart: mondayOf(today()), month: { y: new Date().getFullYear(), m: new Date().getMonth() },
+            lastDay: today(), expanded: new Set(), splitOpen: new Set(), histMode: 'month', year: new Date().getFullYear(), yearList: false, pending: new Map(), rerender: false, confirmDel: null, bodyErr: '' };
+  var use = (window.claude && typeof window.claude.use === 'function') ? window.claude.use.bind(window.claude) : null;
+  var NATIVE = !!(window.SplitNative && window.SplitNative.native);
+  var LN = NATIVE ? window.SplitNative.LocalNotifications : null;
+  var SHARE = NATIVE ? window.SplitNative.Share : null;
+  var LS = 'splitlog.v1';
+  var IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var STANDALONE = !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches));
+  var LOCAL = NATIVE || !use;   /* data lives on this device only */
+  var DEFAULT_TIMES = { work: '18:00', check: '21:00', missed: '09:30', recover: '17:00', rest: '09:00', summary: '20:00' };
+
+  var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
+  function cache() { try { localStorage.setItem(LS, JSON.stringify(Object.fromEntries(S.docs))); } catch (e) {} }
+  function loadCache() { try { var raw = localStorage.getItem(LS); if (raw) { var o = JSON.parse(raw); Object.keys(o).forEach(function (k) { S.docs.set(k, o[k]); }); } } catch (e) {} }
+
+  var timers = new Map(), inflight = new Set();
+  function saveDoc(id, delay) {
+    S.pending.set(id, true);
+    clearTimeout(timers.get(id));
+    timers.set(id, setTimeout(function () { timers.delete(id); flush(id); }, delay == null ? 60 : delay));
+    cache();
+  }
+  function flush(id) {
+    if (inflight.has(id)) { timers.set(id, setTimeout(function () { timers.delete(id); flush(id); }, 300)); return; }
+    var data = S.docs.get(id);
+    inflight.add(id);
+    var p = Promise.resolve();
+    if (S.col) { p = data ? S.col.doc(id).set(clone(data)) : S.col.doc(id).delete(); }
+    p.catch(function () { toast("Couldn't save to your account. It is kept on this phone."); })
+     .then(function () { inflight.delete(id); if (!timers.has(id)) S.pending.delete(id); });
+  }
+
+  function initStore() {
+    loadCache();
+    if (!use) { ensureStart(); render(); if (NATIVE) { refreshPerm(); scheduleReminders(); } return; }
+    Promise.all([use('user'), use('db')]).then(function (r) {
+      var user = r[0], db = r[1];
+      if (user) user.me().then(function (m) { var n = (m && m.name || '').trim().split(/\s+/)[0]; if (n) { S.name = n; renderSafe(); } }).catch(function () {});
+      if (!user || !db) return null;
+      return user.id().then(function (uid) { return uid ? db.collection('data/users/' + uid) : null; });
+    }).then(function (col) {
+      if (!col) { ensureStart(); renderSafe(); return; }
+      S.col = col; S.mode = 'sync';
+      var slow = setTimeout(function () { if (!S.synced) { S.slow = true; renderStatus(); } }, 10000);
+      col.onSnapshot(function (snap) {
+        var next = new Map();
+        snap.docs.forEach(function (d) { next.set(d.id, clone(d.data())); });
+        S.pending.forEach(function (_, id) { if (S.docs.has(id)) next.set(id, S.docs.get(id)); else next.delete(id); });
+        S.docs = next;
+        if (!snap.metadata.fromCache) { S.synced = true; S.slow = false; clearTimeout(slow); ensureStart(); }
+        cache(); renderSafe();
+      }, function () { S.mode = 'local'; S.col = null; renderStatus(); });
+    }).catch(function () {});
+  }
+
+  /* ---------- data helpers ---------- */
+  var logOf = function (d) { return S.docs.get('log-' + d); };
+  var isDone = function (d) { var l = logOf(d); return !!(l && l.done); };
+  function settings() { var s = S.docs.get('settings'); return Object.assign({}, DEFAULT_TIMES, s && s.times ? s.times : {}); }
+  function startDate() {
+    var s = S.docs.get('settings'), st = s && s.start ? s.start : null;
+    S.docs.forEach(function (d) { if (d.kind === 'log' && d.date && (!st || d.date < st)) st = d.date; });
+    return st || today();
+  }
+  function ensureStart() {
+    var s = S.docs.get('settings');
+    if (s && s.start) return;
+    s = s || { kind: 'settings', times: {} };
+    s.start = today(); S.docs.set('settings', s); saveDoc('settings', 300);
+  }
+  function setsLogged(log) {
+    if (!log || !log.sets) return 0;
+    var n = 0;
+    Object.keys(log.sets).forEach(function (k) { log.sets[k].forEach(function (s) { if (s && (s.w != null || s.r != null)) n++; }); });
+    return n;
+  }
+  function exLogged(log, id) { return log && log.sets && log.sets[id] ? log.sets[id].filter(function (s) { return s && (s.w != null || s.r != null); }).length : 0; }
+  function lastFor(exId, before) {
+    var logs = [];
+    S.docs.forEach(function (d) { if (d.kind === 'log' && d.date < before && d.sets && d.sets[exId]) logs.push(d); });
+    logs.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    for (var i = 0; i < logs.length; i++) {
+      var arr = logs[i].sets[exId];
+      if (arr.some(function (s) { return s && (s.w != null || s.r != null); })) return arr;
+    }
+    return null;
+  }
+  function streaks() {
+    var tdy = today(), dates = [];
+    S.docs.forEach(function (d) { if (d.kind === 'log' && d.done) dates.push(d.date); });
+    dates.sort();
+    var total = dates.filter(isLift).length;
+    var first = dates.length ? dates[0] : tdy;
+    var cur = 0, d = tdy;
+    if (isLift(d) && !isDone(d)) d = addDays(d, -1);
+    for (var i = 0; i < 900 && d >= first; i++, d = addDays(d, -1)) {
+      if (!isLift(d)) continue;
+      if (isDone(d)) cur++; else break;
+    }
+    var best = 0, run = 0;
+    for (var x = first; x <= tdy; x = addDays(x, 1)) {
+      if (!isLift(x)) continue;
+      if (isDone(x)) { run++; if (run > best) best = run; } else if (x < tdy) run = 0;
+    }
+    return { cur: cur, best: Math.max(best, cur), total: total };
+  }
+  function weekStats(mon) {
+    var done = 0, sets = 0;
+    for (var i = 0; i < 7; i++) {
+      var d = addDays(mon, i);
+      if (isLift(d) && isDone(d)) done++;
+      sets += setsLogged(logOf(d));
+    }
+    return { done: done, sets: sets };
+  }
+  function statusOf(date) {
+    var key = keyOf(date), t = DAYS[key].type, tdy = today();
+    if (t === 'rest') return 'rest';
+    if (isDone(date)) return 'done';
+    if (date === tdy) return 'today';
+    if (date > tdy) return 'plan';
+    return t === 'lift' && date >= startDate() ? 'missed' : 'none';
+  }
+  var STATUS_TEXT = { done: 'Done', today: 'Today', plan: 'Planned', missed: 'Missed', rest: 'Rest', none: 'No log' };
+
+  /* ---------- pieces ---------- */
+  var ICON_PLUS = '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="10.5"/><path d="M14 9.5v9M9.5 14h9"/></svg>';
+  var ICON_L = '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>';
+  var ICON_R = '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
+  var sec = function (t) { return '<div class="sec">' + esc(t) + '</div>'; };
+  function weekLabel(mon) {
+    var cur = mondayOf(today());
+    if (mon === cur) return 'This week';
+    if (mon === addDays(cur, -7)) return 'Last week';
+    if (mon === addDays(cur, 7)) return 'Next week';
+    return shortD(mon) + ' - ' + shortD(addDays(mon, 6));
+  }
+  function strip(mon) {
+    var letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], tdy = today(), h = '<div class="strip">';
+    for (var i = 0; i < 7; i++) {
+      var d = addDays(mon, i), key = keyOf(d), day = DAYS[key], st = statusOf(d), cls = 'sq', code = '';
+      if (st === 'done') { cls += ' done' + (day.type === 'recovery' ? ' rc' : ''); code = day.code; }
+      else if (st === 'plan' || st === 'today') { if (st === 'plan' || d > tdy) cls += ' future'; code = day.type === 'rest' ? '' : day.code; }
+      else if (st === 'rest') cls += ' rest';
+      else code = st === 'missed' ? day.code : '';
+      if (day.type === 'rest') cls = 'sq rest';
+      if (d === S.date) cls += ' sel';
+      h += '<div class="col"><span class="L' + (d === tdy ? ' now' : '') + '">' + letters[i] + '</span><button class="' + cls + '" data-action="pickDay" data-date="' + d + '" aria-label="' + longD(d) + ', ' + day.name + ', ' + STATUS_TEXT[st] + '">' + code + '</button></div>';
+    }
+    return h + '</div>';
+  }
+  function nudge() {
+    var y = addDays(today(), -1);
+    if (!isLift(y) || isDone(y) || y < startDate()) return '';
+    return '<div class="nudge"><p><b>' + esc(DAYS[keyOf(y)].name) + '</b> yesterday is not logged. Missed days stay missed in your streak. If you did train, log it now.</p>' +
+      '<div class="row"><button class="pillbtn sm" data-action="goDay" data-date="' + y + '">Log yesterday</button></div></div>';
+  }
+  function installHint() {
+    var gone = S.hintOff; try { gone = gone || localStorage.getItem('splitlog.hint') === '1'; } catch (e) {}
+    if (NATIVE || !IOS || STANDALONE || gone) return '';
+    return '<div class="nudge"><p><b>Add Split Log to your Home Screen.</b> Tap the Share button in Safari, then Add to Home Screen (scroll down the list if you don\'t see it). Do it before you log anything: the Home Screen app keeps its own data, separate from Safari.</p><div class="row"><button class="pillbtn sm" data-action="hintOff">Got it</button></div></div>';
+  }
+  function remPrompt() {
+    if (!NATIVE) return '';
+    var s = S.docs.get('settings');
+    if (s && s.enabled) return '';
+    return '<div class="nudge"><p>Reminders are off. Turn them on so Split Log can nudge you on training days.</p><div class="row"><button class="pillbtn sm" data-action="goAlerts">Set up reminders</button></div></div>';
+  }
+  function vlinks(id) {
+    var v = VIDEOS[id]; if (!v) return '';
+    return '<div class="vids">' + v.map(function (x) { return '<a class="vid" href="' + esc(x[1]) + '" target="_blank" rel="noopener">\u25B6 ' + esc(x[0]) + '</a>'; }).join('') + '</div>';
+  }
+  function exRow(e, i, date, log, editable) {
+    var open = S.expanded.has(e.id), n = exLogged(log, e.id), last = lastFor(e.id, date), rows = '';
+    for (var k = 0; k < e.sets; k++) {
+      var cur = log && log.sets && log.sets[e.id] && log.sets[e.id][k] ? log.sets[e.id][k] : {};
+      var ph = last && last[k] ? last[k] : {};
+      rows += '<div class="set" data-i="' + k + '"><label>' + (k + 1) + '</label>' +
+        '<input type="text" inputmode="decimal" data-f="w" aria-label="Set ' + (k + 1) + (e.bw ? ' added kg' : ' kg') + '" placeholder="' + (ph.w != null ? ph.w : (e.bw ? '+kg' : 'kg')) + '" value="' + (cur.w != null ? cur.w : '') + '"' + (editable ? '' : ' disabled') + '>' +
+        '<input type="text" inputmode="decimal" data-f="r" aria-label="Set ' + (k + 1) + (e.timed ? ' seconds' : ' reps') + '" placeholder="' + (ph.r != null ? ph.r : (e.timed ? 'sec' : 'reps')) + '" value="' + (cur.r != null ? cur.r : '') + '"' + (editable ? '' : ' disabled') + '></div>';
+    }
+    var lastTxt = last ? 'Last: ' + last.filter(function (s) { return s && (s.w != null || s.r != null); }).map(function (s) { return (s.w != null ? s.w : '-') + '×' + (s.r != null ? s.r : '-'); }).join(', ') : 'No earlier log yet';
+    return '<div class="ex" data-ex="' + e.id + '"><button class="ex-head" data-action="toggle" data-id="' + e.id + '" aria-expanded="' + open + '">' +
+      '<span class="ex-n">' + (i + 1) + '</span><span class="ex-t"><b>' + esc(e.name) + '</b><small>' + e.sets + ' × ' + e.reps + ' · rest ' + e.rest + '</small></span>' +
+      '<span class="ex-p' + (n >= e.sets ? ' full' : '') + '">' + n + '/' + e.sets + '</span>' +
+      '<svg class="chev" viewBox="0 0 14 14"><path d="M2 5l5 5 5-5"/></svg></button>' +
+      '<div class="ex-body"><div class="set-h"><span>Set</span><span>' + (e.bw ? 'Added kg' : 'kg') + '</span><span>' + (e.timed ? 'Seconds' : 'Reps') + '</span></div>' + rows +
+      '<div class="ex-actions"><span class="last">' + esc(lastTxt) + '</span>' + (last && editable ? '<button class="link" data-action="sameLast" data-id="' + e.id + '">Same as last</button>' : '') + '</div>' + vlinks(e.id) + '</div></div>';
+  }
+
+  /* ---------- views ---------- */
+  function viewDay() {
+    var date = S.date, tdy = today(), key = keyOf(date), day = DAYS[key], st = statusOf(date);
+    var log = logOf(date), done = isDone(date), editable = date <= tdy && date >= addDays(tdy, -7), s = streaks(), wk = weekStats(S.weekStart);
+    var h = '<header class="head"><div><div class="eyebrow">Split Log</div><h1>Hey' + (S.name ? ' ' + esc(S.name) : '') + '</h1></div><div class="status" id="status" aria-live="polite"></div></header>';
+    if (date === tdy) h += nudge() + remPrompt() + installHint();
+
+    h += '<section class="card"><div class="row"><div><h2>Your training</h2><p class="muted">' + weekLabel(S.weekStart) + ' · ' + wk.done + ' of ' + WEEKLY_GOAL + '</p></div>' +
+      '<div class="row" style="gap:8px"><button class="arrow" data-action="weekPrev" aria-label="Previous week">' + ICON_L + '</button><button class="arrow" data-action="weekNext" aria-label="Next week">' + ICON_R + '</button></div></div>' +
+      strip(S.weekStart) + '<p class="muted small">Red is trained, dashed is coming up. Tap a day to see it.</p><button class="link" data-action="openYear" style="align-self:flex-start">See the whole year</button>';
+    if (day.type !== 'rest' && editable) {
+      var label = day.type === 'recovery' ? 'I did recovery' : (date === tdy ? 'I trained today' : 'I trained this day');
+      h += done ? '<div class="logged"><span>' + (day.type === 'recovery' ? 'Recovery logged' : 'Workout logged') + '</span><button class="link" data-action="undo">Undo</button></div>'
+        : '<button class="pillbtn" data-action="done">' + ICON_PLUS + label + '</button>';
+    }
+    h += '</section>';
+
+    h += sec(date === tdy ? "Today's session" : longD(date));
+    if (date !== tdy) h += '<div class="viewing"><span>Not today</span><button class="link" data-action="goToday">Back to today</button></div>';
+    if (day.type === 'lift') {
+      h += '<section class="card"><div class="row"><span class="chip ' + (st === 'plan' || st === 'none' ? '' : st) + '">' + STATUS_TEXT[st] + '</span><span class="muted small">' + longD(date) + '</span></div><h2 class="big">' + esc(day.name) + '</h2>' +
+        '<p class="muted">' + day.ex.length + ' exercises · ' + totalSets(day) + ' sets · about ' + day.minutes + ' min</p>' +
+        (date > tdy ? '<p class="muted small">Planned. You can log it on the day.</p>' : (!editable ? '<p class="muted small">More than a week back, so this day is read-only.</p>' : '')) + '</section>';
+      day.ex.forEach(function (e, i) { h += exRow(e, i, date, log, editable); });
+    } else if (day.type === 'recovery') {
+      h += '<section class="card"><h2 class="big">Recovery</h2><p>Easy swim, 20-30 min at a pace where you can talk. Then sauna or steam for 10-15 min, or a hot jacuzzi for about 10. Drink water before and after.</p><p class="muted">Recovery is not part of your 5-session goal, so skipping it never breaks your streak.</p></section>';
+    } else {
+      h += '<section class="card"><h2 class="big">Rest day</h2><p>No lifting. An easy 20-30 min walk is fine. Aim for 7-9 hours of sleep before Monday.</p><p class="muted">' + wk.done + ' of ' + WEEKLY_GOAL + ' sessions done in the week so far · ' + wk.sets + ' sets logged.</p></section>';
+    }
+
+    h += sec('Consistency') + '<div class="tiles"><div class="tile"><b>' + s.cur + '</b><span>session streak</span></div><div class="tile"><b>' + s.best + '</b><span>best streak</span></div><div class="tile"><b>' + s.total + '</b><span>sessions total</span></div></div>';
+    return h;
+  }
+
+  function logsOfYear(y) {
+    var a = [];
+    S.docs.forEach(function (d) { if (d.kind === 'log' && d.done && d.date && d.date.slice(0, 4) === String(y)) a.push(d); });
+    return a.sort(function (p, q) { return p.date < q.date ? 1 : -1; });
+  }
+  var dayOfLog = function (l) { return DAYS[l.day || keyOf(l.date)]; };
+  function heatCard() {
+    var y = new Date().getFullYear(), tdy = today(), jan1 = y + '-01-01', last = y + '-12-31', mon = mondayOf(jan1);
+    var weeks = Math.ceil(((parse(last) - parse(mon)) / 864e5 + 1) / 7), cells = '';
+    for (var r = 0; r < 7; r++) for (var c = 0; c < weeks; c++) {
+      var d = addDays(mon, c * 7 + r), cls = '';
+      if (d < jan1 || d > last) cls = 'out';
+      else if (isDone(d)) cls = DAYS[(logOf(d) && logOf(d).day) || keyOf(d)].type === 'recovery' ? 'rc' : 'done';
+      else if (d > tdy) cls = 'fut';
+      else if (statusOf(d) === 'missed') cls = 'missed';
+      if (d === tdy) cls += ' now';
+      cells += '<i class="' + cls + '"></i>';
+    }
+    var n = logsOfYear(y).filter(function (l) { return dayOfLog(l).type === 'lift'; }).length;
+    return '<button class="card hmcard" data-action="openYear" aria-label="Open the year view, ' + n + ' sessions in ' + y + '"><div class="row"><h2>Your ' + y + '</h2><span class="muted">' + n + ' sessions</span></div>' +
+      '<div class="hm" style="--w:' + weeks + '" aria-hidden="true">' + cells + '</div><span class="muted small">Each square is a day, Monday at the top. Tap to see every session.</span></button>';
+  }
+  function histSwitch() {
+    return '<div class="seg" role="group" aria-label="History view"><button data-action="histMode" data-mode="month" aria-pressed="' + (S.histMode === 'month') + '">Month</button><button data-action="histMode" data-mode="year" aria-pressed="' + (S.histMode === 'year') + '">Year</button></div>';
+  }
+  function yearView() {
+    var y = S.year, tdy = today(), cur = +tdy.slice(0, 4), logs = logsOfYear(y), s = streaks();
+    var lifts = logs.filter(function (l) { return dayOfLog(l).type === 'lift'; });
+    var by = {}, perMonth = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    lifts.forEach(function (l) { var k = l.day || keyOf(l.date); by[k] = (by[k] || 0) + 1; perMonth[+l.date.slice(5, 7) - 1]++; });
+    var weeks = y === cur ? Math.max(1, Math.ceil(((parse(tdy) - new Date(y, 0, 1, 12)) / 864e5 + 1) / 7)) : 52;
+    var avg = Math.round(lifts.length / weeks * 10) / 10;
+    var h = '<div class="row"><button class="arrow" data-action="yearPrev" aria-label="Previous year">' + ICON_L + '</button><h2 class="big" style="font-size:30px;font-weight:600">' + y + '</h2><button class="arrow" data-action="yearNext" aria-label="Next year">' + ICON_R + '</button></div>';
+    h += '<div class="tiles"><div class="tile"><b>' + lifts.length + '</b><span>sessions</span></div><div class="tile"><b>' + avg + '</b><span>per week</span></div><div class="tile"><b>' + s.best + '</b><span>best streak</span></div></div>';
+    var max = Math.max(1, Math.max.apply(null, ['pull', 'push', 'legsA', 'upperB', 'legsB'].map(function (k) { return by[k] || 0; })));
+    h += '<section class="card"><h2>By split</h2>' + ['pull', 'push', 'legsA', 'upperB', 'legsB'].map(function (k) {
+      return '<div class="bys"><span>' + DAYS[k].name + '</span><div class="bar"><i style="width:' + Math.round((by[k] || 0) / max * 100) + '%"></i></div><b>' + (by[k] || 0) + '</b></div>';
+    }).join('') + '</section>';
+    var months = '';
+    for (var m = 0; m < 12; m++) {
+      var first = new Date(y, m, 1, 12), offset = (first.getDay() + 6) % 7, dim = new Date(y, m + 1, 0, 12).getDate(), cells = '';
+      for (var b = 0; b < offset; b++) cells += '<span class="yd blank"></span>';
+      for (var d = 1; d <= dim; d++) {
+        var ds = y + '-' + pad(m + 1) + '-' + pad(d), st = statusOf(ds), cls = 'yd';
+        if (st === 'done') cls += ' done' + (dayOfLog(logOf(ds) || { day: keyOf(ds) }).type === 'recovery' ? ' rc' : '');
+        else if (st === 'missed') cls += ' missed';
+        if (ds === tdy) cls += ' today';
+        cells += '<button class="' + cls + '" data-action="goDay" data-date="' + ds + '" aria-label="' + longD(ds) + ', ' + STATUS_TEXT[st] + '"></button>';
+      }
+      months += '<div class="ym"><h3>' + MON[m] + '<span>' + perMonth[m] + '</span></h3><div class="ycal">' + cells + '</div></div>';
+    }
+    h += '<div class="yms">' + months + '</div><p class="legend">Red is a trained day, outlined is recovery, dashed is a missed day. Tap any day to open it.</p>';
+    h += '<button class="pillbtn" data-action="yearList">' + (S.yearList ? 'Hide' : 'Show') + ' all ' + logs.length + ' logged sessions</button>';
+    if (S.yearList) {
+      h += '<section class="card">' + (logs.length ? logs.map(function (l) {
+        var dy = dayOfLog(l), n = setsLogged(l);
+        return '<button class="srow" data-action="goDay" data-date="' + l.date + '"><span><b>' + esc(dy.name) + '</b><small>' + longD(l.date) + '</small></span><span class="muted small">' + (n ? n + ' sets' : 'logged') + '</span></button>';
+      }).join('') : '<p class="muted">No sessions logged in ' + y + ' yet.</p>') + '</section>';
+    }
+    return h;
+  }
+  function viewLog() {
+    var y = S.month.y, m = S.month.m, tdy = today(), curMon = mondayOf(tdy);
+    var h = '<header class="head"><div><div class="eyebrow">Logbook</div><h1>Your split</h1></div><div class="status" id="status" aria-live="polite"></div></header>';
+    h += heatCard();
+    h += '<p class="muted">Five lifting days, one recovery day and one rest day, every week. Tap a day to see its exercises.</p>';
+    [1, 2, 3, 4, 5, 6, 0].forEach(function (n) {
+      var key = DOW[n], day = DAYS[key], d = addDays(curMon, (n + 6) % 7), st = statusOf(d), open = S.splitOpen.has(key);
+      var meta = day.type === 'lift' ? day.ex.length + ' exercises · ' + totalSets(day) + ' sets' : day.type === 'recovery' ? 'Swim, sauna or steam' : 'Full rest';
+      var chip = '<span class="chip ' + (st === 'plan' || st === 'none' || st === 'rest' ? '' : st) + '">' + STATUS_TEXT[st] + '</span>';
+      if (day.type !== 'lift') { h += '<div class="split"><div class="split-head static"><span class="d">' + WD[n] + '</span><span class="t"><b>' + esc(day.name) + '</b><small>' + meta + '</small></span>' + chip + '</div></div>'; return; }
+      h += '<div class="split"><button class="split-head" data-action="splitToggle" data-key="' + key + '" aria-expanded="' + open + '"><span class="d">' + WD[n] + '</span><span class="t"><b>' + esc(day.name) + '</b><small>' + meta + '</small></span>' + chip +
+        '<svg class="chev" viewBox="0 0 14 14"><path d="M2 5l5 5 5-5"/></svg></button><div class="split-body"><ol>' +
+        day.ex.map(function (e) { return '<li><span>' + esc(e.name) + '</span><span>' + e.sets + ' × ' + e.reps + '</span></li>'; }).join('') +
+        '</ol><button class="pillbtn sm" data-action="goDay" data-date="' + d + '">Open this week\'s session</button></div></div>';
+    });
+
+    var first = new Date(y, m, 1, 12), offset = (first.getDay() + 6) % 7, dim = new Date(y, m + 1, 0, 12).getDate(), monthSessions = 0;
+    var grid = ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(function (n) { return '<div class="h">' + n + '</div>'; }).join('');
+    for (var b = 0; b < offset; b++) grid += '<div class="cell blank"></div>';
+    for (var dd = 1; dd <= dim; dd++) {
+      var ds = y + '-' + pad(m + 1) + '-' + pad(dd), st2 = statusOf(ds), k2 = (logOf(ds) && logOf(ds).day) || keyOf(ds), dy = DAYS[k2], cls = 'cell', code = '';
+      if (st2 === 'done') { cls += ' done' + (dy.type === 'recovery' ? ' rc' : ''); code = dy.code; if (isLift(ds)) monthSessions++; }
+      else if (st2 === 'missed') cls += ' missed'; else cls += ' off';
+      if (ds === tdy) cls += ' today';
+      grid += '<button class="' + cls + '" data-action="goDay" data-date="' + ds + '" aria-label="' + longD(ds) + ', ' + dy.name + ', ' + STATUS_TEXT[st2] + '"><span class="n">' + dd + '</span><span class="c">' + code + '</span></button>';
+    }
+    var s = streaks();
+    h += '<div id="hist"></div>' + sec('History') + histSwitch();
+    if (S.histMode === 'year') h += yearView(); else {
+    h += '<section class="card"><div class="row"><button class="arrow" data-action="monthPrev" aria-label="Previous month">' + ICON_L + '</button><h2>' + MONL[m] + ' ' + y + '</h2><button class="arrow" data-action="monthNext" aria-label="Next month">' + ICON_R + '</button></div>' +
+      '<div class="cal">' + grid + '</div><p class="legend">Red is a trained day with its split code. Grey is a missed day.</p></section>';
+    h += '<div class="tiles two"><div class="tile"><b>' + monthSessions + '</b><span>sessions in ' + MONL[m] + '</span></div><div class="tile"><b>' + s.total + '</b><span>sessions all time</span></div></div>';
+    }
+    if (!s.total) h += '<p class="muted">Nothing logged yet. Finish today\'s workout and it shows up here.</p>';
+    h += '<button class="pillbtn" data-action="exportCsv" id="exportBtn" hidden>Export logs as CSV</button>';
+    if (LOCAL) {
+      h += sec('Your data') + '<p class="muted">Your logs are stored on ' + (NATIVE ? 'this phone' : 'this device') + ' only, not in an account. Back them up now and then, and before you change phones' + (NATIVE ? '' : ' or clear Safari data') + '.' +
+        (!NATIVE && IOS ? ' The Home Screen app and Safari keep separate data, so log from the Home Screen icon only.' : '') + '</p>' +
+        '<button class="pillbtn" data-action="backup">Back up my data</button>' + (NATIVE ? '' : '<button class="pillbtn" data-action="backupCopy">Copy backup text</button>') + '<button class="pillbtn" data-action="restoreToggle">Restore from a backup</button>';
+      if (S.restoreOpen) h += '<section class="card"><label class="field">Paste your backup text<textarea id="r-text" rows="5" placeholder="Paste the backup here"></textarea></label>' +
+        (NATIVE ? '' : '<label class="field">Or choose the backup file<input type="file" id="r-file" accept=".txt,.json,text/plain,application/json"></label>') +
+        '<button class="pillbtn solid" data-action="restoreDo">Restore</button></section>';
+    }
+    return h;
+  }
+
+  function bodyEntries() {
+    var a = [];
+    S.docs.forEach(function (d) { if (d.kind === 'body') a.push(d); });
+    return a.sort(function (x, y) { return x.date < y.date ? -1 : 1; });
+  }
+  function chart(pts, unit) {
+    if (pts.length < 2) return '<p class="muted">Add at least two entries to see the trend.</p>';
+    var W = 320, H = 150, pl = 36, pr = 10, pt = 10, pb = 24;
+    var vals = pts.map(function (p) { return p.v; }), mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+    if (mx - mn < 1) { mn -= 0.5; mx += 0.5; }
+    var padv = (mx - mn) * 0.15; mn -= padv; mx += padv;
+    var t0 = parse(pts[0].date).getTime(), t1 = parse(pts[pts.length - 1].date).getTime(), span = Math.max(1, t1 - t0);
+    var X = function (p) { return pl + (parse(p.date).getTime() - t0) / span * (W - pl - pr); };
+    var Y = function (v) { return pt + (1 - (v - mn) / (mx - mn)) * (H - pt - pb); };
+    var g = '';
+    for (var i = 0; i < 3; i++) { var v = mn + (mx - mn) * i / 2, y = Y(v); g += '<line class="grid" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"/><text x="' + (pl - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end">' + (Math.round(v * 10) / 10) + '</text>'; }
+    var line = pts.map(function (p, k) { return (k ? 'L' : 'M') + X(p).toFixed(1) + ' ' + Y(p.v).toFixed(1); }).join(' ');
+    var dots = pts.map(function (p) { return '<circle class="dot" cx="' + X(p).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="3.2"/>'; }).join('');
+    return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Trend in ' + unit + ' from ' + shortD(pts[0].date) + ' to ' + shortD(pts[pts.length - 1].date) + '">' + g + '<path class="ln" d="' + line + '"/>' + dots +
+      '<text x="' + pl + '" y="' + (H - 6) + '">' + shortD(pts[0].date) + '</text><text x="' + (W - pr) + '" y="' + (H - 6) + '" text-anchor="end">' + shortD(pts[pts.length - 1].date) + '</text></svg>';
+  }
+  function viewBody() {
+    var es = bodyEntries(), tdy = today();
+    var wp = es.filter(function (e) { return e.w != null; }).map(function (e) { return { date: e.date, v: e.w }; });
+    var cp = es.filter(function (e) { return e.c != null; }).map(function (e) { return { date: e.date, v: e.c }; });
+    var lastW = wp.length ? wp[wp.length - 1].v : '', lastC = cp.length ? cp[cp.length - 1].v : '';
+    var h = '<header class="head"><div><div class="eyebrow">Body</div><h1>Measurements</h1></div><div class="status" id="status" aria-live="polite"></div></header>';
+    h += '<section class="card"><h2>Add an entry</h2><div class="form">' +
+      '<label class="field full">Date<input type="date" id="b-date" value="' + tdy + '" max="' + tdy + '"></label>' +
+      '<label class="field">Body weight (kg)<input type="text" inputmode="decimal" id="b-w" placeholder="' + (lastW || 'kg') + '"></label>' +
+      '<label class="field">Waist (cm)<input type="text" inputmode="decimal" id="b-c" placeholder="' + (lastC || 'cm') + '"></label>' +
+      '<div class="full err" id="b-err">' + esc(S.bodyErr) + '</div><button class="pillbtn solid full" data-action="saveBody">Save entry</button></div>' +
+      '<p class="muted">Weigh yourself on 3-4 mornings a week and measure your waist every 2 weeks. A shrinking waist with steady shoulders is the V-taper showing up.</p></section>';
+    h += sec('Body weight') + '<section class="card">' + chart(wp, 'kg') + '</section>' + sec('Waist') + '<section class="card">' + chart(cp, 'cm') + '</section>';
+    if (es.length) {
+      h += sec('Entries') + '<section class="card"><div class="entries">' + es.slice().reverse().map(function (e) {
+        var id = 'body-' + e.date;
+        return '<div class="entry"><span>' + shortD(e.date) + ' ' + e.date.slice(0, 4) + '</span><span>' + (e.w != null ? e.w + ' kg' : '-') + ' · ' + (e.c != null ? e.c + ' cm' : '-') + '</span>' +
+          '<button class="link" data-action="delBody" data-id="' + id + '">' + (S.confirmDel === id ? 'Tap to confirm' : 'Delete') + '</button></div>';
+      }).join('') + '</div></section>';
+    }
+    return h;
+  }
+
+  var BY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  function gcal(title, details, days, time) {
+    var d = today(); for (var i = 0; i < 8 && days.indexOf(dowOf(d)) < 0; i++) d = addDays(d, 1);
+    var hm = time.split(':').map(Number), startMin = hm[0] * 60 + hm[1], endMin = Math.min(startMin + 15, 1439), ds = d.replace(/-/g, '');
+    var q = new URLSearchParams({ action: 'TEMPLATE', text: title, details: details,
+      dates: ds + 'T' + pad(hm[0]) + pad(hm[1]) + '00/' + ds + 'T' + pad(Math.floor(endMin / 60)) + pad(endMin % 60) + '00',
+      ctz: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
+      recur: 'RRULE:FREQ=WEEKLY;BYDAY=' + days.map(function (n) { return BY[n]; }).join(',') });
+    return 'https://calendar.google.com/calendar/render?' + q.toString();
+  }
+  function remRow(title, sub, href, evId) {
+    var act = evId ? '<button class="add" data-action="ics" data-ev="' + evId + '" aria-label="Add ' + esc(title) + ' to Calendar">Add</button>'
+      : '<a class="add" href="' + esc(href) + '" target="_blank" rel="noopener">Add</a>';
+    return '<div class="rem"><div><b>' + esc(title) + '</b><small>' + esc(sub) + '</small></div>' + act + '</div>';
+  }
+  function remEvents() {
+    var t = settings(), out = [];
+    [1, 2, 3, 5, 6].forEach(function (n) {
+      out.push({ id: 'work-' + n, title: 'Gym: ' + DAYS[DOW[n]].name, details: 'Open Split Log and check in after your workout.', days: [n], time: t.work });
+    });
+    out.push({ id: 'check', title: "Log today's workout in Split Log", details: 'Missed days stay missed. Log it before bed.', days: LIFT_DOWS, time: t.check });
+    out.push({ id: 'recover', title: 'Recovery: easy swim, sauna or steam', details: 'No lifting today.', days: [4], time: t.recover });
+    out.push({ id: 'rest', title: 'Rest day: no lifting', details: 'Sleep, eat well, easy walk if you like.', days: [0], time: t.rest });
+    out.push({ id: 'summary', title: 'Review your gym week', details: 'Open Split Log. Sessions done out of 5, and your streak.', days: [0], time: t.summary });
+    return out;
+  }
+  function icsEscape(v) { return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
+  function icsFold(line) {
+    var out = [line.slice(0, 70)]; line = line.slice(70);
+    while (line.length) { out.push(' ' + line.slice(0, 70)); line = line.slice(70); }
+    return out.join('\r\n');
+  }
+  function icsFor(evs) {
+    var n = new Date(), stamp = n.getUTCFullYear() + pad(n.getUTCMonth() + 1) + pad(n.getUTCDate()) + 'T' + pad(n.getUTCHours()) + pad(n.getUTCMinutes()) + pad(n.getUTCSeconds()) + 'Z';
+    var L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Split Log//Reminders//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    evs.forEach(function (e) {
+      var d = today(); for (var i = 0; i < 8 && e.days.indexOf(dowOf(d)) < 0; i++) d = addDays(d, 1);
+      var hm = e.time.split(':').map(Number), st = hm[0] * 60 + hm[1], en = Math.min(st + 15, 1439), ds = d.replace(/-/g, '');
+      L.push('BEGIN:VEVENT', 'UID:splitlog-' + e.id + '@split-log', 'DTSTAMP:' + stamp,
+        'DTSTART:' + ds + 'T' + pad(hm[0]) + pad(hm[1]) + '00', 'DTEND:' + ds + 'T' + pad(Math.floor(en / 60)) + pad(en % 60) + '00',
+        'RRULE:FREQ=WEEKLY;BYDAY=' + e.days.map(function (k) { return BY[k]; }).join(','),
+        'SUMMARY:' + icsEscape(e.title), 'DESCRIPTION:' + icsEscape(e.details), 'TRANSP:TRANSPARENT',
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEscape(e.title), 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT');
+    });
+    L.push('END:VCALENDAR');
+    return L.map(icsFold).join('\r\n') + '\r\n';
+  }
+  function addToCalendar(evs, name) {
+    var text = icsFor(evs), file = null;
+    try { file = new File([text], name, { type: 'text/calendar' }); } catch (e) {}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Split Log reminders' }).catch(function (e) { if (!e || e.name !== 'AbortError') toast("Couldn't open the share sheet."); });
+      return;
+    }
+    if (STANDALONE) { toast('Open this page in Safari, not the Home Screen icon, to add reminders.'); return; }
+    window.location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(text);
+  }
+  function timeField(key, label, t) {
+    return '<div class="timerow"><span>' + label + '</span><input type="time" data-time="' + key + '" value="' + t[key] + '" aria-label="' + label + ' time"></div>';
+  }
+  var REM_TYPES = [
+    { k: 'work', title: 'Workout day', sub: 'Tells you which split day it is, on your 5 lifting days' },
+    { k: 'check', title: 'Evening check-in', sub: "Asks if you logged today's workout, only if you have not" },
+    { k: 'missed', title: 'Missed-day nudge', sub: 'Next morning, only if that workout is still not logged' },
+    { k: 'recover', title: 'Thursday recovery', sub: 'Easy swim, sauna or steam' },
+    { k: 'rest', title: 'Sunday rest day', sub: 'No lifting, sleep and food' },
+    { k: 'summary', title: 'Sunday week review', sub: 'Reminds you to check your sessions and streak' }
+  ];
+  function remOn(k) { var s = S.docs.get('settings'); return !(s && s.on && s.on[k] === false); }
+  function viewRemindNative() {
+    var t = settings(), s = S.docs.get('settings') || {}, perm = S.perm || 'unknown';
+    var h = '<header class="head"><div><div class="eyebrow">Alerts</div><h1>Reminders</h1></div><div class="status" id="status" aria-live="polite"></div></header>';
+    var on = !!s.enabled && perm === 'granted';
+    var msg = !s.enabled ? 'Reminders are off. Turn them on to get notifications on this phone, even when the app is closed.'
+      : perm === 'granted' ? 'Reminders are on. They keep working when the app is closed. Open the app now and then so the next 3 weeks stay scheduled.'
+      : 'Notifications are blocked for Split Log. Allow them in Android Settings, Apps, Split Log, Notifications.';
+    h += '<section class="card"><p>' + msg + '</p>' + (on ? '<button class="pillbtn" data-action="testNotify">Send a test notification</button>' : '<button class="pillbtn solid" data-action="enableRem">Turn on reminders</button>') + '</section>';
+    h += sec('Choose reminders') + '<section class="card">' + REM_TYPES.map(function (r) {
+      var ck = remOn(r.k);
+      return '<div class="remn"><div class="row"><div><b>' + r.title + '</b><small>' + r.sub + '</small></div><label class="sw"><input type="checkbox" data-on="' + r.k + '"' + (ck ? ' checked' : '') + ' aria-label="' + r.title + '"></label></div>' +
+        (ck ? timeField(r.k, 'Time', t) : '') + '</div>';
+    }).join('') + '</section>';
+    h += '<p class="muted small">Android may delay a reminder by a few minutes to save battery. If you never get them, set Split Log to "Unrestricted" under Battery in Android Settings.</p>';
+    return h;
+  }
+  function viewRemind() {
+    if (NATIVE) return viewRemindNative();
+    return viewRemindWeb();
+  }
+  function viewRemindWeb() {
+    var t = settings(), cal = IOS;
+    var h = '<header class="head"><div><div class="eyebrow">Alerts</div><h1>Reminders</h1></div><div class="status" id="status" aria-live="polite"></div></header>';
+    if (cal) h += '<section class="card"><p>Websites can\'t send their own notifications on iPhone, so Calendar sends these. They arrive even when the app is closed, and each one repeats every week. Pick your times below, then add them.</p>' +
+      '<button class="pillbtn solid" data-action="icsAll">Add all reminders to Calendar</button>' +
+      '<p class="muted small">A share sheet opens. Choose Calendar, or tap Save to Files and open the saved file. Then tap Add All.</p></section>';
+    else h += '<section class="card"><p>Your calendar app sends these, so they arrive even when this page is closed. Pick a time, tap Add, then save the event in Google Calendar. Each one repeats every week.</p></section>';
+    h += sec('Workout day') + '<section class="card">' + timeField('work', 'Reminder time', t);
+    [1, 2, 3, 5, 6].forEach(function (n) {
+      var day = DAYS[DOW[n]];
+      h += remRow(WDL[n] + ': ' + day.name, day.ex.length + ' exercises, about ' + day.minutes + ' min', cal ? null : gcal('Gym: ' + day.name, 'Open Split Log and check in after your workout.', [n], t.work), cal ? 'work-' + n : null);
+    });
+    h += '</section>' + sec('Check-in nudge') + '<section class="card">' + timeField('check', 'Time', t) +
+      remRow("Did you log today's workout?", 'Mon, Tue, Wed, Fri, Sat', cal ? null : gcal("Log today's workout in Split Log", 'Missed days stay missed. Log it before bed.', LIFT_DOWS, t.check), cal ? 'check' : null) + '</section>';
+    h += sec('Recovery and rest') + '<section class="card">' + timeField('recover', 'Thursday recovery', t) + timeField('rest', 'Sunday rest day', t) + timeField('summary', 'Sunday week review', t) +
+      remRow('Thursday: recovery', 'Easy swim, sauna or steam', cal ? null : gcal('Recovery: easy swim, sauna or steam', 'No lifting today.', [4], t.recover), cal ? 'recover' : null) +
+      remRow('Sunday: rest day', 'No lifting, sleep 7-9 hours', cal ? null : gcal('Rest day: no lifting', 'Sleep, eat well, easy walk if you like.', [0], t.rest), cal ? 'rest' : null) +
+      remRow('Sunday: weekly summary', 'Open Daily and review the week', cal ? null : gcal('Review your gym week', 'Open Split Log. Sessions done out of 5, and your streak.', [0], t.summary), cal ? 'summary' : null) + '</section>';
+    if (cal) h += '<p class="muted small">Each event alerts you at its start time. To change a time later, delete the old Split Log events in Calendar first, then add them again, so you don\'t get two. Calendar can\'t skip the check-in on days you already logged, so just ignore it then.</p>';
+    else h += '<p class="muted small">Calendar reminders use your calendar\'s default alert time. Change it in Google Calendar settings if you want one at the exact start.</p>';
+    return h;
+  }
+
+  /* ---------- render ---------- */
+  function renderStatus() {
+    var el = document.getElementById('status'); if (!el) return;
+    el.textContent = S.mode === 'sync' ? (S.slow ? "Can't reach your account yet" : S.synced ? 'Saved to your account' : 'Syncing...') : 'Saved on this phone';
+  }
+  function render() {
+    var v = document.getElementById('view');
+    v.innerHTML = S.tab === 'today' ? viewDay() : S.tab === 'log' ? viewLog() : S.tab === 'body' ? viewBody() : viewRemind();
+    document.querySelectorAll('#tabs button').forEach(function (b) { b.setAttribute('aria-current', b.dataset.tab === S.tab ? 'page' : 'false'); });
+    renderStatus();
+    if (S.tab === 'log') {
+      var btn = document.getElementById('exportBtn');
+      if (btn && LOCAL) btn.hidden = false;
+      else if (btn && use) use('downloads').then(function (dl) { if (dl && btn.isConnected) btn.hidden = false; }).catch(function () {});
+    }
+  }
+  function renderSafe() {
+    var a = document.activeElement;
+    if (a && a.matches && a.matches('#view input')) { S.rerender = true; renderStatus(); return; }
+    render();
+  }
+  var toastT;
+  function toast(msg) {
+    var el = document.getElementById('toast'); el.textContent = msg; el.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(function () { el.hidden = true; }, 3200);
+  }
+
+  /* ---------- actions ---------- */
+  function ensureLog(date) {
+    var id = 'log-' + date, l = S.docs.get(id);
+    if (!l) { l = { kind: 'log', date: date, day: keyOf(date), done: false, sets: {} }; S.docs.set(id, l); }
+    return l;
+  }
+  function findEx(date, exId) { return DAYS[keyOf(date)].ex.filter(function (e) { return e.id === exId; })[0]; }
+  function num(v) { var n = parseFloat(String(v).trim().replace(',', '.')); return isNaN(n) ? null : n; }
+  function openDay(date) { S.date = date; S.weekStart = mondayOf(date); S.tab = 'today'; render(); window.scrollTo(0, 0); }
+
+  document.getElementById('tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-tab]'); if (!b) return;
+    S.tab = b.dataset.tab;
+    if (S.tab === 'today') { S.date = today(); S.weekStart = mondayOf(S.date); }
+    render(); window.scrollTo(0, 0);
+  });
+
+  document.getElementById('view').addEventListener('click', function (e) {
+    var a = e.target.closest('[data-action]'); if (!a) return;
+    var act = a.dataset.action, tdy = today();
+    if (act === 'toggle') { var id = a.dataset.id; if (S.expanded.has(id)) S.expanded.delete(id); else S.expanded.add(id); a.setAttribute('aria-expanded', S.expanded.has(id)); return; }
+    if (act === 'splitToggle') { var k = a.dataset.key; if (S.splitOpen.has(k)) S.splitOpen.delete(k); else S.splitOpen.add(k); a.setAttribute('aria-expanded', S.splitOpen.has(k)); return; }
+    if (act === 'done') { var l = ensureLog(S.date); l.done = true; l.day = keyOf(S.date); saveDoc('log-' + S.date, 60); render(); toast('Logged. Nice work.'); scheduleReminders(); return; }
+    if (act === 'undo') { var l2 = logOf(S.date); if (l2) { l2.done = false; saveDoc('log-' + S.date, 60); } render(); scheduleReminders(); return; }
+    if (act === 'pickDay') { S.date = a.dataset.date; render(); return; }
+    if (act === 'goDay') { openDay(a.dataset.date); return; }
+    if (act === 'goToday') { S.date = tdy; S.weekStart = mondayOf(tdy); render(); return; }
+    if (act === 'weekPrev') { S.weekStart = addDays(S.weekStart, -7); render(); return; }
+    if (act === 'weekNext') { S.weekStart = addDays(S.weekStart, 7); render(); return; }
+    if (act === 'monthPrev') { S.month.m--; if (S.month.m < 0) { S.month.m = 11; S.month.y--; } render(); return; }
+    if (act === 'monthNext') { S.month.m++; if (S.month.m > 11) { S.month.m = 0; S.month.y++; } render(); return; }
+    if (act === 'sameLast') {
+      var exd = findEx(S.date, a.dataset.id), last = lastFor(a.dataset.id, S.date); if (!exd || !last) return;
+      var lg = ensureLog(S.date); lg.sets[exd.id] = clone(last).slice(0, exd.sets); saveDoc('log-' + S.date, 200); S.expanded.add(exd.id); render(); return;
+    }
+    if (act === 'saveBody') { saveBody(); return; }
+    if (act === 'delBody') {
+      var did = a.dataset.id;
+      if (S.confirmDel === did) { S.docs.delete(did); S.confirmDel = null; saveDoc(did, 60); toast('Entry deleted.'); }
+      else { S.confirmDel = did; setTimeout(function () { if (S.confirmDel === did) { S.confirmDel = null; if (S.tab === 'body') render(); } }, 3000); }
+      render(); return;
+    }
+    if (act === 'exportCsv') { exportCsv(); return; }
+    if (act === 'openYear') { S.histMode = 'year'; S.year = new Date().getFullYear(); S.tab = 'log'; render(); var hs = document.getElementById('hist'); if (hs) hs.scrollIntoView(); return; }
+    if (act === 'histMode') { S.histMode = a.dataset.mode; render(); return; }
+    if (act === 'yearPrev') { S.year--; render(); return; }
+    if (act === 'yearNext') { S.year++; render(); return; }
+    if (act === 'yearList') { S.yearList = !S.yearList; render(); return; }
+    if (act === 'goAlerts') { S.tab = 'remind'; render(); window.scrollTo(0, 0); return; }
+    if (act === 'enableRem') { enableReminders(); return; }
+    if (act === 'testNotify') { testNotify(); return; }
+    if (act === 'backup') { shareText('Split Log backup', backupJson(), 'Save your backup', 'split-log-backup.txt'); return; }
+    if (act === 'backupCopy') { copyText(backupJson()); return; }
+    if (act === 'hintOff') { S.hintOff = true; try { localStorage.setItem('splitlog.hint', '1'); } catch (e) {} render(); return; }
+    if (act === 'icsAll') { addToCalendar(remEvents(), 'split-log-reminders.ics'); return; }
+    if (act === 'ics') { var evs = remEvents().filter(function (e) { return e.id === a.dataset.ev; }); if (evs.length) addToCalendar(evs, 'split-log-' + a.dataset.ev + '.ics'); return; }
+    if (act === 'restoreToggle') { S.restoreOpen = !S.restoreOpen; render(); return; }
+    if (act === 'restoreDo') { restoreBackup(); return; }
+  });
+
+  document.getElementById('view').addEventListener('input', function (e) {
+    var el = e.target; if (!el.dataset || !el.dataset.f) return;
+    var exEl = el.closest('.ex'), row = el.closest('.set'); if (!exEl || !row) return;
+    var date = S.date, exd = findEx(date, exEl.dataset.ex); if (!exd) return;
+    var l = ensureLog(date), i = +row.dataset.i;
+    var arr = l.sets[exd.id] || (l.sets[exd.id] = []);
+    while (arr.length <= i) arr.push({ w: null, r: null });
+    if (!arr[i]) arr[i] = { w: null, r: null };
+    arr[i][el.dataset.f] = num(el.value);
+    var n = exLogged(l, exd.id), p = exEl.querySelector('.ex-p');
+    p.textContent = n + '/' + exd.sets; p.classList.toggle('full', n >= exd.sets);
+    saveDoc('log-' + date, 700);
+  });
+
+  document.getElementById('view').addEventListener('change', function (e) {
+    var el = e.target;
+    if (el && el.id === 'r-file') {
+      var f = el.files && el.files[0], box = document.getElementById('r-text');
+      if (f && box) f.text().then(function (t) { box.value = t; toast('File loaded. Tap Restore.'); }).catch(function () { toast("Couldn't read that file."); });
+      return;
+    }
+    if (!el.dataset) return;
+    if (el.dataset.on) {
+      var s0 = S.docs.get('settings') || { kind: 'settings', times: {} };
+      s0.on = Object.assign({}, s0.on); s0.on[el.dataset.on] = el.checked;
+      S.docs.set('settings', s0); saveDoc('settings', 300); render(); scheduleReminders(); return;
+    }
+    if (!el.dataset.time || !el.value) return;
+    var s = S.docs.get('settings') || { kind: 'settings', times: {} };
+    s.times = Object.assign({}, s.times); s.times[el.dataset.time] = el.value;
+    S.docs.set('settings', s); saveDoc('settings', 300); render(); scheduleReminders();
+  });
+
+  document.getElementById('view').addEventListener('focusout', function () {
+    setTimeout(function () {
+      var a = document.activeElement;
+      if (S.rerender && !(a && a.matches && a.matches('#view input'))) { S.rerender = false; render(); }
+    }, 150);
+  });
+
+  function saveBody() {
+    var date = document.getElementById('b-date').value || today();
+    var w = num(document.getElementById('b-w').value), c = num(document.getElementById('b-c').value), err = '';
+    if (w == null && c == null) err = 'Enter a weight, a waist measurement, or both.';
+    else if (w != null && (w < 20 || w > 400)) err = 'Weight should be between 20 and 400 kg.';
+    else if (c != null && (c < 30 || c > 250)) err = 'Waist should be between 30 and 250 cm.';
+    S.bodyErr = err;
+    if (err) { document.getElementById('b-err').textContent = err; return; }
+    var id = 'body-' + date, old = S.docs.get(id) || {};
+    S.docs.set(id, { kind: 'body', date: date, w: w != null ? w : (old.w != null ? old.w : null), c: c != null ? c : (old.c != null ? old.c : null) });
+    saveDoc(id, 60); render(); toast('Entry saved.');
+  }
+
+  function exportCsv() {
+    var q = function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; };
+    var rows = ['date,split_day,exercise,set,weight_kg,reps_or_seconds'], logs = [];
+    S.docs.forEach(function (d) { if (d.kind === 'log') logs.push(d); });
+    logs.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    logs.forEach(function (l) {
+      var day = DAYS[l.day || keyOf(l.date)], any = false;
+      day.ex.forEach(function (e) {
+        (l.sets && l.sets[e.id] || []).forEach(function (s, i) {
+          if (s && (s.w != null || s.r != null)) { any = true; rows.push([l.date, q(day.name), q(e.name), i + 1, s.w != null ? s.w : '', s.r != null ? s.r : ''].join(',')); }
+        });
+      });
+      if (!any && l.done) rows.push([l.date, q(day.name), '', '', '', ''].join(','));
+    });
+    if (!use) { shareText('Split Log CSV', rows.join('\n'), 'Share your logs', 'split-log.csv'); return; }
+    use('downloads').then(function (dl) {
+      if (!dl) throw 0;
+      return dl.save({ filename: 'split-log.csv', data: rows.join('\n') });
+    }).then(function () { toast('CSV saved.'); }).catch(function (err) { if (!err || err.code !== 'declined') toast("Couldn't save the file here."); });
+  }
+
+  /* ---------- reminders (Android local notifications) ---------- */
+  function refreshPerm() {
+    if (!LN) return Promise.resolve();
+    return LN.checkPermissions().then(function (r) { S.perm = r.display; if (S.tab === 'remind' || S.tab === 'today') renderSafe(); }).catch(function () {});
+  }
+  function enableReminders() {
+    if (!LN) return;
+    LN.requestPermissions().then(function (r) {
+      S.perm = r.display;
+      if (r.display === 'granted') {
+        var s = S.docs.get('settings') || { kind: 'settings', times: {} };
+        s.enabled = true; S.docs.set('settings', s); saveDoc('settings', 60);
+        scheduleReminders(); toast('Reminders are on.');
+      } else toast('Allow notifications to use reminders.');
+      render();
+    }).catch(function () { toast("Couldn't ask for notification permission."); });
+  }
+  function testNotify() {
+    if (!LN) return;
+    LN.schedule({ notifications: [{ id: 999, title: 'Split Log', body: 'Reminders are working.', smallIcon: 'ic_stat_name', schedule: { at: new Date(Date.now() + 4000), allowWhileIdle: true } }] })
+      .then(function () { toast('Test sent. It arrives in a few seconds.'); }).catch(function () { toast("Couldn't send the test."); });
+  }
+  function atTime(ds, hm) {
+    var p = hm.split(':').map(Number), q = ds.split('-').map(Number);
+    return new Date(q[0], q[1] - 1, q[2], p[0], p[1], 0);
+  }
+  function buildNotifications() {
+    var t = settings(), now = Date.now(), out = [], tdy = today();
+    function add(i, type, when, title, body) {
+      if (when.getTime() <= now + 5000) return;
+      out.push({ id: (i + 1) * 10 + type, title: title, body: body, smallIcon: 'ic_stat_name', schedule: { at: when, allowWhileIdle: true } });
+    }
+    for (var i = 0; i < 21; i++) {
+      var d = addDays(tdy, i), key = keyOf(d), day = DAYS[key], lift = day.type === 'lift', done = isDone(d);
+      if (lift && !done) {
+        if (remOn('work')) add(i, 1, atTime(d, t.work), 'Gym today: ' + day.name, day.ex.length + ' exercises · ' + totalSets(day) + ' sets · about ' + day.minutes + ' min');
+        if (remOn('check')) add(i, 2, atTime(d, t.check), "Did you log today's workout?", day.name + ' is not logged yet. Missed days stay missed.');
+        if (remOn('missed')) add(i, 3, atTime(addDays(d, 1), t.missed), day.name + ' is not logged', "Yesterday's workout is missing. Log it now or it counts as missed.");
+      }
+      if (key === 'recovery' && !done && remOn('recover')) add(i, 4, atTime(d, t.recover), 'Recovery day', 'Easy swim, sauna or steam. No lifting today.');
+      if (key === 'rest') {
+        if (remOn('rest')) add(i, 5, atTime(d, t.rest), 'Rest day', 'No lifting today. Sleep 7-9 hours and eat well.');
+        if (remOn('summary')) add(i, 6, atTime(d, t.summary), 'Review your week', 'Open Split Log to see your sessions and streak.');
+      }
+    }
+    return out;
+  }
+  function runSchedule() {
+    var s = S.docs.get('settings') || {};
+    return LN.checkPermissions().then(function (p) {
+      S.perm = p.display;
+      return LN.getPending();
+    }).then(function (pend) {
+      var ids = (pend.notifications || []).filter(function (n) { return n.id !== 999; }).map(function (n) { return { id: n.id }; });
+      return ids.length ? LN.cancel({ notifications: ids }) : null;
+    }).then(function () {
+      if (!s.enabled || S.perm !== 'granted') return null;
+      var list = buildNotifications();
+      return list.length ? LN.schedule({ notifications: list }) : null;
+    }).catch(function () {});
+  }
+  var schedT, schedChain = Promise.resolve();
+  function scheduleReminders() {
+    if (!LN) return;
+    clearTimeout(schedT);
+    schedT = setTimeout(function () { schedChain = schedChain.then(runSchedule); }, 500);
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    var t = today(), rolled = S.lastDay !== t; S.lastDay = t;
+    if (rolled) { S.date = t; S.weekStart = mondayOf(t); }
+    if (NATIVE) { refreshPerm(); scheduleReminders(); render(); } else if (rolled) render();
+  });
+  if (!NATIVE && navigator.storage && navigator.storage.persist) { try { navigator.storage.persist(); } catch (e) {} }
+
+  /* ---------- backup and sharing ---------- */
+  function backupJson() {
+    var o = {}; S.docs.forEach(function (v, k) { o[k] = v; });
+    return JSON.stringify({ app: 'split-log', v: 1, docs: o });
+  }
+  function copyText(text) {
+    var p = (navigator.clipboard && navigator.clipboard.writeText) ? navigator.clipboard.writeText(text) : Promise.reject(new Error('no clipboard'));
+    return p.then(function () { toast('Copied. Paste it into a note to keep it.'); })
+      .catch(function () { toast("Couldn't share or copy it."); });
+  }
+  function webShare(filename, text, title) {
+    var file = null;
+    try { file = new File([text], filename, { type: 'text/plain' }); } catch (e) {}
+    var fallback = function (e) { if (!e || e.name !== 'AbortError') return copyText(text); };
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], title: title }).catch(fallback);
+    if (navigator.share && text.length < 100000) return navigator.share({ title: title, text: text }).catch(fallback);
+    return copyText(text);
+  }
+  function shareText(title, text, dialog, filename) {
+    if (SHARE && text.length < 200000) {
+      return SHARE.share({ title: title, text: text, dialogTitle: dialog || title }).catch(function () {});
+    }
+    if (NATIVE) return copyText(text);
+    return webShare(filename || 'split-log.txt', text, title);
+  }
+  function restoreBackup() {
+    var el = document.getElementById('r-text'), raw = el ? el.value.trim() : '', o;
+    try { o = JSON.parse(raw); } catch (e) { toast("That doesn't look like a Split Log backup."); return; }
+    if (!o || o.app !== 'split-log' || !o.docs || typeof o.docs !== 'object') { toast("That doesn't look like a Split Log backup."); return; }
+    var n = 0;
+    Object.keys(o.docs).forEach(function (id) {
+      var d = o.docs[id];
+      if (!d || typeof d !== 'object' || ['log', 'body', 'settings'].indexOf(d.kind) < 0) return;
+      if (!/^(log|body)-\d{4}-\d{2}-\d{2}$/.test(id) && id !== 'settings') return;
+      S.docs.set(id, d); saveDoc(id, 60); n++;
+    });
+    S.restoreOpen = false; render(); scheduleReminders();
+    toast(n ? 'Restored ' + n + ' entries.' : 'Nothing to restore in that backup.');
+  }
+
+  initStore();
+  render();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
