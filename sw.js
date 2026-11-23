@@ -1,5 +1,5 @@
 /* Split Log service worker: opens instantly from the saved copy (also with no signal), and refreshes the copy in the background. */
-const CACHE = 'splitlog-e40a8b997104';
+const CACHE = 'splitlog-a826c650f982';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
